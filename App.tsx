@@ -66,32 +66,6 @@ const App = () => {
     }
   }, []);
 
-  const sendData = useCallback(
-    async (data: string) => {
-      if (!connectedDevice) {
-        Alert.alert('Erro', 'Dispositivo não conectado');
-        return;
-      }
-
-      try {
-        const base64Data = base64.encode(data);
-        const serviceUUID = '00001843-0000-1000-8000-00805f9b34fb'; // Substitua pelo UUID do serviço
-        const characteristicUUID = '00002b7b-0000-1000-8000-00805f9b34fb'; // Substitua pelo UUID da característica
-        console.log('aqui');
-        await connectedDevice.writeCharacteristicWithResponseForService(
-          serviceUUID,
-          characteristicUUID,
-          base64Data,
-        );
-        Alert.alert('Sucesso', 'Dados enviados com sucesso');
-      } catch (error) {
-        console.error('Erro ao enviar dados:', error);
-        Alert.alert('Erro', 'Erro ao enviar dados');
-      }
-    },
-    [connectedDevice],
-  );
-
   const renderItem = ({item}: {item: BleDevice}) => (
     <View style={styles.deviceContainer}>
       <Text style={styles.deviceText}>
@@ -100,6 +74,31 @@ const App = () => {
       <Text style={styles.deviceText}>{item.id}</Text>
       <Button title="Conectar" onPress={() => connectToDevice(item)} />
     </View>
+  );
+  const adjustVolume = useCallback(
+    async (volume: string) => {
+      if (!connectedDevice) {
+        Alert.alert('Erro', 'Dispositivo não conectado');
+        return;
+      }
+
+      try {
+        const serviceUUID = '00001843-0000-1000-8000-00805f9b34fb';
+        const characteristicUUID = '00002b7e-0000-1000-8000-00805f9b34fb';
+        const volumeCommand = `AT+SPKVOL=${volume}`;
+
+        await connectedDevice.writeCharacteristicWithResponseForService(
+          serviceUUID,
+          characteristicUUID,
+          base64.encode(volumeCommand),
+        );
+        Alert.alert('Sucesso', `Volume ajustado para ${volume}`);
+      } catch (error) {
+        console.error('Erro ao ajustar volume:', error);
+        Alert.alert('Erro', 'Erro ao ajustar volume');
+      }
+    },
+    [connectedDevice],
   );
 
   return (
@@ -110,11 +109,19 @@ const App = () => {
         keyExtractor={item => item.id}
         ListEmptyComponent={() => <Text>Nenhum dispositivo encontrado</Text>}
       />
-      <Button
-        title="Enviar Dados"
-        onPress={() => sendData('Olá122121')}
-        disabled={!connectedDevice}
-      />
+
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Aumentar Volume"
+          onPress={() => adjustVolume('+')}
+          disabled={!connectedDevice}
+        />
+        <Button
+          title="Diminuir Volume"
+          onPress={() => adjustVolume('-')}
+          disabled={!connectedDevice}
+        />
+      </View>
     </View>
   );
 };
@@ -130,6 +137,12 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#ccc',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    padding: 20,
   },
   deviceText: {
     fontSize: 16,
