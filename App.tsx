@@ -85,7 +85,7 @@ const App = () => {
       try {
         const serviceUUID = '00001843-0000-1000-8000-00805f9b34fb';
         const characteristicUUID = '00002b7e-0000-1000-8000-00805f9b34fb';
-        const volumeCommand = `AT+SPKVOL=${volume}`;
+        const volumeCommand = `AT+SPKVOL=${volume}\r\n`;
 
         await connectedDevice.writeCharacteristicWithResponseForService(
           serviceUUID,
