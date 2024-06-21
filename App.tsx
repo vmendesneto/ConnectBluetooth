@@ -7,8 +7,9 @@ import {
   Alert,
   Button,
   FlatList,
+  Platform,
 } from 'react-native';
-import {BleManager, Device as BleDevice} from 'react-native-ble-plx';
+import {BleManager, Device as BleDevice, State} from 'react-native-ble-plx';
 import base64 from 'react-native-base64';
 type Device = {
   id: string;
@@ -22,23 +23,36 @@ const App = () => {
     null,
   );
   const scanDevices = useCallback(() => {
-    manager.startDeviceScan(null, null, (error, scannedDevice) => {
-      if (error) {
-        console.error(error);
+    manager.state().then(state => {
+      if (state !== State.PoweredOn) {
+        Alert.alert('Erro', 'Bluetooth não está ativado');
         return;
       }
-      if (scannedDevice) {
-        setDevices(prevDevices => {
-          const deviceExists = prevDevices.some(d => d.id === scannedDevice.id);
-          if (!deviceExists) {
-            return [...prevDevices, scannedDevice];
-          }
-          return prevDevices;
-        });
-      }
+
+      manager.startDeviceScan(null, null, (error, scannedDevice) => {
+        if (error) {
+          Alert.alert('Erro', 'Localização não está ativada');
+          console.error(`erro scan ${error}`);
+          return;
+        }
+        if (scannedDevice) {
+          setDevices(prevDevices => {
+            const deviceExists = prevDevices.some(
+              d => d.id === scannedDevice.id,
+            );
+            if (!deviceExists) {
+              return [...prevDevices, scannedDevice];
+            }
+            return prevDevices;
+          });
+        }
+      });
     });
   }, [manager]);
-
+  const handleRefresh = useCallback(() => {
+    manager.stopDeviceScan();
+    scanDevices();
+  }, [manager, scanDevices]);
   useEffect(() => {
     const checkPermissionsAndScan = async () => {
       const permissionsGranted = await requestLocationPermission();
@@ -72,7 +86,9 @@ const App = () => {
         {item.name || 'Dispositivo sem nome'}
       </Text>
       <Text style={styles.deviceText}>{item.id}</Text>
-      <Button title="Conectar" onPress={() => connectToDevice(item)} />
+      <View style={styles.buttonContainer}>
+        <Button title="Conectar" onPress={() => connectToDevice(item)} />
+      </View>
     </View>
   );
   const adjustVolume = useCallback(
@@ -85,8 +101,9 @@ const App = () => {
       try {
         const serviceUUID = '00001843-0000-1000-8000-00805f9b34fb';
         const characteristicUUID = '00002b7e-0000-1000-8000-00805f9b34fb';
-        const volumeCommand = `AT+SPKVOL=${volume}\r\n`;
 
+        const volumeCommand = `AT+SPKVOL=${volume}\r\n`;
+        console.log(volumeCommand);
         await connectedDevice.writeCharacteristicWithResponseForService(
           serviceUUID,
           characteristicUUID,
@@ -109,7 +126,7 @@ const App = () => {
         keyExtractor={item => item.id}
         ListEmptyComponent={() => <Text>Nenhum dispositivo encontrado</Text>}
       />
-
+      <Button title="Refresh" onPress={handleRefresh} />
       <View style={styles.buttonContainer}>
         <Button
           title="Aumentar Volume"
@@ -148,28 +165,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 });
+export default App;
 export async function requestLocationPermission() {
   try {
-    const granted = await PermissionsAndroid.request(
+    const permissions = [
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       PermissionsAndroid.PERMISSIONS.ACCESS_COARSE_LOCATION,
-      {
-        title: 'Location permission for bluetooth scanning',
-        message: 'Authorizes access bluetooth',
-        buttonNeutral: 'Ask Me Later',
-        buttonNegative: 'Cancel',
-        buttonPositive: 'OK',
-      },
+    ];
+
+    let platformVersion = Platform.Version;
+    if (typeof platformVersion === 'number') {
+      platformVersion = platformVersion.toString();
+    }
+
+    const versionNumber = parseInt(platformVersion, 10);
+
+    if (!isNaN(versionNumber) && versionNumber >= 31) {
+      // Android 12 e posterior
+      permissions.push(
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_ADVERTISE,
+      );
+    }
+
+    const granted = await PermissionsAndroid.requestMultiple(permissions);
+
+    const allPermissionsGranted = Object.values(granted).every(
+      result => result === PermissionsAndroid.RESULTS.GRANTED,
     );
-    if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-      console.log('Location permission for bluetooth scanning granted');
+
+    if (allPermissionsGranted) {
+      console.log('All permissions for Bluetooth scanning granted');
       return true;
     } else {
-      console.log('Location permission for bluetooth scanning revoked');
+      console.log('Some permissions for Bluetooth scanning revoked');
       return false;
     }
   } catch (err) {
-    console.warn(err);
+    console.warn(`erro ${err}`);
     return false;
   }
 }
-export default App;
