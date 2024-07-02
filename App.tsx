@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import {BleManager, Device as BleDevice, State} from 'react-native-ble-plx';
 import base64 from 'react-native-base64';
+import RNPickerSelect from 'react-native-picker-select';
 type Device = {
   id: string;
   name: string | null;
@@ -22,6 +23,15 @@ const App = () => {
   const [connectedDevice, setConnectedDevice] = useState<BleDevice | null>(
     null,
   );
+  const [uuids, setUuids] = useState<string[]>([]);
+  const [uuidsC, setUuidsC] = useState<string[]>([]);
+  const [selectedServiceUUID, setSelectedServiceUUID] = useState<string | null>(
+    null,
+  );
+  const [selectedCharacteristicUUID, setSelectedCharacteristicUUID] = useState<
+    string | null
+  >(null);
+
   const scanDevices = useCallback(() => {
     manager.state().then(state => {
       if (state !== State.PoweredOn) {
@@ -73,6 +83,26 @@ const App = () => {
     try {
       const connectedToDevice = await device.connect();
       await connectedToDevice.discoverAllServicesAndCharacteristics();
+      // Obter os serviços do dispositivo
+      const discoveredServices = await connectedToDevice.services();
+      const uuids = discoveredServices.map(service => service.uuid);
+      setUuids(uuids);
+      console.log('Services:', uuids);
+      let allCharacteristics: string[] = [];
+      for (const uuid of uuids) {
+        const characteristics =
+          await connectedToDevice.characteristicsForService(uuid);
+        const characteristicsUUIDs = characteristics.map(
+          characteristic => characteristic.uuid,
+        );
+        allCharacteristics = [...allCharacteristics, ...characteristicsUUIDs];
+      }
+      // const characteristics = await connectedToDevice.characteristicsForService(
+      //   uuids[0],
+      // );
+      // const uuidsC = characteristics.map(characteristic => characteristic.uuid);
+      setUuidsC(allCharacteristics);
+      console.log('Characteristics:', uuidsC);
       setConnectedDevice(connectedToDevice);
       Alert.alert('Conectado', `Conectado ao dispositivo ${device.name}`);
     } catch (error) {
@@ -88,6 +118,7 @@ const App = () => {
       <Text style={styles.deviceText}>{item.id}</Text>
       <View style={styles.buttonContainer}>
         <Button title="Conectar" onPress={() => connectToDevice(item)} />
+        <Button title="Refresh" onPress={handleRefresh} />
       </View>
     </View>
   );
@@ -97,25 +128,30 @@ const App = () => {
         Alert.alert('Erro', 'Dispositivo não conectado');
         return;
       }
-
+      if (!selectedServiceUUID || !selectedCharacteristicUUID) {
+        Alert.alert(
+          'Erro',
+          'UUID de serviço ou característica não selecionado',
+        );
+        return;
+      }
       try {
-        const serviceUUID = '00001843-0000-1000-8000-00805f9b34fb';
-        const characteristicUUID = '00002b7e-0000-1000-8000-00805f9b34fb';
-
+        //const serviceUUID = '00001843-0000-1000-8000-00805f9b34fb';
+        //const characteristicUUID = '00002b7j-0000-1000-8000-00805f9b34fb';
         const volumeCommand = `AT+SPKVOL=${volume}\r\n`;
         console.log(volumeCommand);
         await connectedDevice.writeCharacteristicWithResponseForService(
-          serviceUUID,
-          characteristicUUID,
+          selectedServiceUUID,
+          selectedCharacteristicUUID,
           base64.encode(volumeCommand),
         );
         Alert.alert('Sucesso', `Volume ajustado para ${volume}`);
       } catch (error) {
         console.error('Erro ao ajustar volume:', error);
-        Alert.alert('Erro', 'Erro ao ajustar volume');
+        Alert.alert('Erro', `Erro ao ajustar volume: ${error}`);
       }
     },
-    [connectedDevice],
+    [connectedDevice, selectedCharacteristicUUID, selectedServiceUUID],
   );
 
   return (
@@ -126,7 +162,21 @@ const App = () => {
         keyExtractor={item => item.id}
         ListEmptyComponent={() => <Text>Nenhum dispositivo encontrado</Text>}
       />
-      <Button title="Refresh" onPress={handleRefresh} />
+
+      <View style={styles.pickerContainer}>
+        <Text>Selecionar Serviço UUID:</Text>
+        <RNPickerSelect
+          onValueChange={value => setSelectedServiceUUID(value)}
+          items={uuids.map(uuid => ({label: uuid, value: uuid}))}
+        />
+      </View>
+      <View style={styles.pickerContainer}>
+        <Text>Selecionar Característica UUID:</Text>
+        <RNPickerSelect
+          onValueChange={value => setSelectedCharacteristicUUID(value)}
+          items={uuidsC.map(uuid => ({label: uuid, value: uuid}))}
+        />
+      </View>
       <View style={styles.buttonContainer}>
         <Button
           title="Aumentar Volume"
@@ -160,6 +210,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     width: '100%',
     padding: 20,
+  },
+  pickerContainer: {
+    marginVertical: 10,
+    width: '80%',
   },
   deviceText: {
     fontSize: 16,
