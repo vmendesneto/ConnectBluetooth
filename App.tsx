@@ -118,7 +118,6 @@ const App = () => {
       <Text style={styles.deviceText}>{item.id}</Text>
       <View style={styles.buttonContainer}>
         <Button title="Conectar" onPress={() => connectToDevice(item)} />
-        <Button title="Refresh" onPress={handleRefresh} />
       </View>
     </View>
   );
@@ -162,7 +161,9 @@ const App = () => {
         keyExtractor={item => item.id}
         ListEmptyComponent={() => <Text>Nenhum dispositivo encontrado</Text>}
       />
-
+      <View style={styles.buttonContainer}>
+        <Button title="Refresh" onPress={handleRefresh} />
+      </View>
       <View style={styles.pickerContainer}>
         <Text>Selecionar Serviço UUID:</Text>
         <RNPickerSelect
