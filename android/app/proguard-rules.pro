@@ -8,3 +8,13 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+-dontwarn com.google.android.gms.location.FusedLocationProviderClient
+-dontwarn com.google.android.gms.location.LocationCallback
+-dontwarn com.google.android.gms.location.LocationRequest
+-dontwarn com.google.android.gms.location.LocationServices
+-dontwarn com.google.android.gms.location.LocationSettingsRequest$Builder
+-dontwarn com.google.android.gms.location.LocationSettingsRequest
+-dontwarn com.google.android.gms.location.SettingsClient
+-dontwarn com.google.android.gms.tasks.OnFailureListener
+-dontwarn com.google.android.gms.tasks.OnSuccessListener
+-dontwarn com.google.android.gms.tasks.Task
