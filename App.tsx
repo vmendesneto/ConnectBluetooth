@@ -97,10 +97,6 @@ const App = () => {
         );
         allCharacteristics = [...allCharacteristics, ...characteristicsUUIDs];
       }
-      // const characteristics = await connectedToDevice.characteristicsForService(
-      //   uuids[0],
-      // );
-      // const uuidsC = characteristics.map(characteristic => characteristic.uuid);
       setUuidsC(allCharacteristics);
       console.log('Characteristics:', uuidsC);
       setConnectedDevice(connectedToDevice);
